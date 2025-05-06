@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, font
 import json
-import urllib.request
-import sys
 import os
+import sys
+import urllib.request
 
 class SimpleTextEditor:
     def __init__(self, root):
@@ -27,7 +27,7 @@ class SimpleTextEditor:
             )
             btn.pack(side="left", padx=2, pady=2)
 
-        # Barre d'outils (toujours visible, juste sous les onglets)
+        # Barre d'outils
         self.toolbar = tk.Frame(self.root, bg="#ffffff")
         self.toolbar.pack(side="top", fill="x", pady=(0, 2))
 
@@ -262,11 +262,8 @@ class SimpleTextEditor:
         webbrowser.open("https://github.com/codeartemis37/word-maison")
 
     def update_from_github(self):
-        # URL du fichier principal sur le dépôt GitHub
         url = "https://raw.githubusercontent.com/codeartemis37/word-maison/main/notepad.py"
-        local_path = os.path.abspath(sys.argv[0])  # Chemin du script courant
-
-        # Sauvegarde de sécurité
+        local_path = os.path.abspath(sys.argv[0])
         backup_path = local_path + ".bak"
         try:
             with open(local_path, "rb") as f:
@@ -276,12 +273,16 @@ class SimpleTextEditor:
         except Exception as e:
             messagebox.showwarning("Sauvegarde", f"Impossible de sauvegarder le fichier actuel : {e}")
 
-        # Téléchargement de la nouvelle version
         try:
             response = urllib.request.urlopen(url)
             new_code = response.read()
             with open(local_path, "wb") as f:
                 f.write(new_code)
+            # Suppression du .bak après mise à jour réussie
+            try:
+                os.remove(backup_path)
+            except Exception:
+                pass
             messagebox.showinfo("Mise à jour", "Mise à jour réussie !\nRedémarrez l'application.")
         except Exception as e:
             messagebox.showerror("Erreur de mise à jour", f"Erreur lors de la mise à jour :\n{e}")
