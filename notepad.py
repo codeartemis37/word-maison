@@ -15,7 +15,7 @@ class SimpleTextEditor:
         self.tab_frame = tk.Frame(self.root, bg="#f5f5f5")
         self.tab_frame.pack(side="top", fill="x")
 
-        self.tabs = ["Accueil", "Insertion", "Aide", "Fichier", "Autres"]
+        self.tabs = ["Fichier", "Accueil", "Insertion", "Autres", "Aide"]
         self.current_tab = tk.StringVar(value="Accueil")
 
         for tab in self.tabs:
