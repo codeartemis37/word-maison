@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, font
 import json
+import urllib.request
+import sys
+import os
 
 class SimpleTextEditor:
     def __init__(self, root):
@@ -12,7 +15,7 @@ class SimpleTextEditor:
         self.tab_frame = tk.Frame(self.root, bg="#f5f5f5")
         self.tab_frame.pack(side="top", fill="x")
 
-        self.tabs = ["Accueil", "Insertion", "Aide"]
+        self.tabs = ["Accueil", "Insertion", "Aide", "Fichier", "Autres"]
         self.current_tab = tk.StringVar(value="Accueil")
 
         for tab in self.tabs:
@@ -78,25 +81,10 @@ class SimpleTextEditor:
 
         self.current_file = None
 
-        # Menu Fichier
-        self.menu = tk.Menu(self.root)
-        self.root.config(menu=self.menu)
-        file_menu = tk.Menu(self.menu, tearoff=0)
-        file_menu.add_command(label="Nouveau", command=self.new_file)
-        file_menu.add_command(label="Ouvrir...", command=self.open_file)
-        file_menu.add_command(label="Enregistrer", command=self.save_file)
-        file_menu.add_separator()
-        file_menu.add_command(label="Quitter", command=self.root.quit)
-        self.menu.add_cascade(label="Fichier", menu=file_menu)
-
     def create_home_toolbar(self):
-        # Nettoie la toolbar
         for widget in self.toolbar.winfo_children():
             widget.destroy()
-
-        # Style minimaliste (boutons rectangulaires par défaut)
         tk.Label(self.toolbar, text="Style :", bg="#ffffff", font=("Arial", 10, "bold")).pack(side="left", padx=(8,5))
-
         tk.Button(self.toolbar, text="Titre", command=self.set_title).pack(side="left", padx=2, pady=2)
         tk.Button(self.toolbar, text="Sous-titre", command=self.set_subtitle).pack(side="left", padx=2, pady=2)
         tk.Button(self.toolbar, text="Gras", command=self.set_bold).pack(side="left", padx=2, pady=2)
@@ -104,7 +92,6 @@ class SimpleTextEditor:
         tk.Button(self.toolbar, text="Souligné", command=self.set_underline).pack(side="left", padx=2, pady=2)
 
     def create_insert_toolbar(self):
-        # Nettoie la toolbar
         for widget in self.toolbar.winfo_children():
             widget.destroy()
         tk.Label(self.toolbar, text="Insertion :", bg="#ffffff", font=("Arial", 10, "bold")).pack(side="left", padx=(8,5))
@@ -112,10 +99,22 @@ class SimpleTextEditor:
         tk.Button(self.toolbar, text="Tableau", state="disabled").pack(side="left", padx=2, pady=2)
 
     def create_help_toolbar(self):
-        # Nettoie la toolbar
         for widget in self.toolbar.winfo_children():
             widget.destroy()
-        tk.Button(self.toolbar, text="Github du projet").pack(side="left", padx=2, pady=2)
+        tk.Button(self.toolbar, text="Github du projet", command=self.open_github_url).pack(side="left", padx=2, pady=2)
+
+    def create_file_toolbar(self):
+        for widget in self.toolbar.winfo_children():
+            widget.destroy()
+        tk.Button(self.toolbar, text="Nouveau", command=self.new_file).pack(side="left", padx=2, pady=2)
+        tk.Button(self.toolbar, text="Ouvrir...", command=self.open_file).pack(side="left", padx=2, pady=2)
+        tk.Button(self.toolbar, text="Enregistrer", command=self.save_file).pack(side="left", padx=2, pady=2)
+
+    def create_other_toolbar(self):
+        for widget in self.toolbar.winfo_children():
+            widget.destroy()
+        tk.Button(self.toolbar, text="Mettre à jour", command=self.update_from_github).pack(side="left", padx=2, pady=2)
+        tk.Button(self.toolbar, text="Quitter", command=quit).pack(side="left", padx=2, pady=2)
 
     def update_toolbar(self):
         tab = self.current_tab.get()
@@ -125,6 +124,10 @@ class SimpleTextEditor:
             self.create_insert_toolbar()
         elif tab == "Aide":
             self.create_help_toolbar()
+        elif tab == "Fichier":
+            self.create_file_toolbar()
+        elif tab == "Autres":
+            self.create_other_toolbar()
 
     def new_file(self):
         self.text.delete(1.0, tk.END)
@@ -139,13 +142,10 @@ class SimpleTextEditor:
             with open(file_path, "r", encoding="utf-8") as f:
                 try:
                     data = json.load(f)
-                    # On attend un format {"text": ..., "tags": [...]}
                     self.text.delete(1.0, tk.END)
                     self.text.insert(1.0, data.get("text", ""))
-                    # Enlève toutes les balises existantes
                     for tag in ["title", "subtitle", "bold", "italic", "underline"]:
                         self.text.tag_remove(tag, "1.0", tk.END)
-                    # Applique les balises sauvegardées
                     for tagdata in data.get("tags", []):
                         tag = tagdata["tag"]
                         start = tagdata["start"]
@@ -164,9 +164,7 @@ class SimpleTextEditor:
                 filetypes=[("MonTexteEditor", "*.mte"), ("Tous les fichiers", "*.*")]
             )
         if file_path:
-            # Récupère le texte
             text_content = self.text.get("1.0", tk.END)
-            # Récupère toutes les balises de formatage
             tags_data = []
             for tag in ["title", "subtitle", "bold", "italic", "underline"]:
                 ranges = self.text.tag_ranges(tag)
@@ -174,12 +172,10 @@ class SimpleTextEditor:
                     start = str(ranges[i])
                     end = str(ranges[i+1])
                     tags_data.append({"tag": tag, "start": start, "end": end})
-            # Structure à sauvegarder
             data = {
                 "text": text_content,
                 "tags": tags_data
             }
-            # Sauvegarde en JSON
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             self.current_file = file_path
@@ -226,7 +222,6 @@ class SimpleTextEditor:
 
     def update_section_list(self, event=None):
         self.section_listbox.delete(0, tk.END)
-        # Cherche tous les titres et sous-titres dans le texte
         for tag in ("title", "subtitle"):
             ranges = self.text.tag_ranges(tag)
             for i in range(0, len(ranges), 2):
@@ -237,7 +232,6 @@ class SimpleTextEditor:
                 if content:
                     label = f"{'Titre' if tag=='title' else 'Sous-titre'} : {content} (Ligne {line})"
                     self.section_listbox.insert(tk.END, label)
-                    # Couleur de fond différente pour titres/sous-titres
                     self.section_listbox.itemconfig(tk.END, {'bg':'#e8eaf6' if tag=='title' else '#f3e5f5'})
         self.text.edit_modified(False)
 
@@ -262,6 +256,35 @@ class SimpleTextEditor:
     def on_text_change(self, event=None):
         if self.text.edit_modified():
             self.update_section_list()
+
+    def open_github_url(self):
+        import webbrowser
+        webbrowser.open("https://github.com/codeartemis37/word-maison")
+
+    def update_from_github(self):
+        # URL du fichier principal sur le dépôt GitHub
+        url = "https://raw.githubusercontent.com/codeartemis37/word-maison/main/notepad.py"
+        local_path = os.path.abspath(sys.argv[0])  # Chemin du script courant
+
+        # Sauvegarde de sécurité
+        backup_path = local_path + ".bak"
+        try:
+            with open(local_path, "rb") as f:
+                content = f.read()
+            with open(backup_path, "wb") as f:
+                f.write(content)
+        except Exception as e:
+            messagebox.showwarning("Sauvegarde", f"Impossible de sauvegarder le fichier actuel : {e}")
+
+        # Téléchargement de la nouvelle version
+        try:
+            response = urllib.request.urlopen(url)
+            new_code = response.read()
+            with open(local_path, "wb") as f:
+                f.write(new_code)
+            messagebox.showinfo("Mise à jour", "Mise à jour réussie !\nRedémarrez l'application.")
+        except Exception as e:
+            messagebox.showerror("Erreur de mise à jour", f"Erreur lors de la mise à jour :\n{e}")
 
 if __name__ == "__main__":
     root = tk.Tk()
